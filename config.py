@@ -9,11 +9,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(BASE_DIR)
 
 # Ahora construimos las rutas partiendo de la carpeta padre
-YOLO12_PATH    = os.path.join(PARENT_DIR, 'yolo12n_run2', 'weights', 'best.pt')
-YOLO26_PATH    = os.path.join(PARENT_DIR, 'yolo26n_run5', 'weights', 'best.pt')
-RFDETR_PATH    = os.path.join(PARENT_DIR, 'checkpoint_best_ema.pth')
-RESNET_PATH    = os.path.join(PARENT_DIR, 'checkpoint_epoch_49.pth.tar')
-CNN_CLS_PATH   = os.path.join(PARENT_DIR, 'best_model.weights.h5')
+YOLO12_PATH    = os.path.join(BASE_DIR, 'models', 'yolo12', 'best.pt')
+YOLO26_PATH    = os.path.join(BASE_DIR, 'models', 'yolo26', 'best.pt')
+RFDETR_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_best_ema.pt')
+RESNET_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_epoch_49.pth.tar')
+CNN_CLS_PATH   = os.path.join(BASE_DIR, 'models', 'best_model.weights.h5')
+
 
 # Lo mismo para las imágenes de prueba (supongo que la carpeta "data" también está fuera)
 IMG_DIR        = os.path.join(PARENT_DIR, 'data', 'test2', 'images')

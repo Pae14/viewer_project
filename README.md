@@ -53,4 +53,4 @@ python3 main.py
 - `E`: Exportar comparación actual a PNG.
 
 ---
-Hecho con ❤️ para la inspección de precisión.
+

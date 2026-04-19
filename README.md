@@ -12,45 +12,40 @@ Una aplicación avanzada de inspección visual basada en **PyQt6** para la detec
 - **Clasificación**: Segundo nivel de análisis con ResNet18 y modelos CNN personalizados.
 - **Interfaz Moderna**: Estética "Glassmorphism" con animaciones fluidas y paleta de colores pastel.
 
-## 🛠️ Requisitos
+## 🛠️ Requisitos e Instalación
 
-Asegúrate de tener instaladas las siguientes dependencias:
+1. **Clonar el repositorio** (asegúrate de tener [Git LFS](https://git-lfs.com/) instalado para descargar los modelos):
+   ```bash
+   git clone https://github.com/Pae14/viewer_project.git
+   cd viewer_project
+   ```
 
-```bash
-pip install PyQt6 opencv-python numpy torch torchvision ultralytics scikit-image tensorflow
-```
+2. **Instalar dependencias**:
+   ```bash
+   pip install PyQt6 opencv-python numpy torch torchvision ultralytics scikit-image tensorflow
+   ```
 
 ## 📂 Estructura del Proyecto
 
-- `main.py`: Punto de entrada y gestión de la interfaz principal.
-- `workers.py`: Lógica de hilos de fondo para carga de modelos e inferencia.
-- `ui_components.py`: Widgets personalizados (botones, tarjetas, paneles de imagen).
-- `config.py`: Configuración de rutas de modelos, colores y parámetros del sensor.
-- `utils_vision.py`: Utilidades para dibujo de máscaras y cálculo de métricas físicas.
-
-## 🔧 Configuración
-
-Los modelos deben estar ubicados en el directorio superior (`..`) siguiendo las rutas en `config.py`:
-
-- `checkpoint_best_ema.pt` (RF-DETR)
-- `yolo12n_run2/weights/best.pt`
-- `yolo26n_run5/weights/best.pt`
-- `checkpoint_epoch_49.pth.tar` (ResNet18)
-- `best_model.weights.h5` (CNN)
+- `main.py`: Punto de entrada principal.
+- `models/`: Carpeta que contiene los pesos de los modelos (gestionada por Git LFS).
+- `workers.py`: Lógica de hilos de fondo para carga e inferencia.
+- `ui_components.py`: Widgets y diseño visual.
+- `config.py`: Configuración global y rutas.
+- `utils_vision.py`: Cálculos de visión computacional y métricas.
 
 ## 📖 Uso
 
-Para iniciar la aplicación:
+Para iniciar la aplicación, ejecuta el script principal:
 
 ```bash
 python3 main.py
 ```
 
-### Atajos de Teclado (Modo Offline)
-- `Flecha Derecha`: Siguiente imagen.
-- `Flecha Izquierda`: Imagen anterior.
-- `Ctrl + F`: Buscar por nombre de archivo.
-- `E`: Exportar comparación actual a PNG.
+### Funcionalidades clave:
+- **Modo Offline**: Usa las flechas del teclado para navegar por las imágenes de la carpeta configurada en `config.py`.
+- **Modo Online**: Selecciona la cámara y pulsa "Start" para ver la detección en directo.
+- **Exportación**: Pulsa `E` o el botón de Snapshot para guardar los resultados analizados.
 
 ---
-
+Hecho con ❤️ para la inspección de precisión.

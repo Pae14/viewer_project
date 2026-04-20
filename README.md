@@ -10,61 +10,64 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 
 El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
-1.  **`main.py`**: **Orquestador Central**. Gestiona el ciclo de vida de la aplicación, la navegación y la comunicación entre módulos mediante el patrón *Signals & Slots*.
-2.  **`workers.py`**: **Capa de Concurrencia**. Implementa el procesamiento multihilo (`QThread`) para la ejecución asíncrona de modelos de IA y la gestión del flujo de cámara.
-3.  **`utils_vision.py`**: **Motor Analítico**. Contiene la lógica matemática para metrología, extracción de características texturales y procesado de imágenes.
-4.  **`ui_components.py`**: **Framework de UI**. Define la identidad visual avanzada (*Glassmorphism*) y widgets personalizados con renderizado optimizado.
-5.  **`config.py`**: **Fuente de Verdad**. Centraliza constantes de calibración, rutas de modelos, paletas estéticas y parámetros globales.
+1.  **`main.py`**: **Orquestador Central**. Gestiona el ciclo de vida de la aplicación y la interfaz principal.
+2.  **`models/`**: Carpeta que contiene los pesos de los modelos (gestionada por **Git LFS**).
+3.  **`workers.py`**: **Capa de Concurrencia**. Implementa el procesamiento multihilo (`QThread`) para la ejecución asíncrona de la IA.
+4.  **`utils_vision.py`**: **Motor Analítico**. Contiene la lógica matemática para metrología y descriptores GLCM.
+5.  **`ui_components.py`**: **Framework de UI**. Define la estética *Glassmorphism* y widgets personalizados.
+6.  **`config.py`**: **Fuente de Verdad**. Centraliza constantes de calibración y rutas globales.
 
 ---
 
 ## 🛠️ Desglose Técnico Detallado (Core Modules)
 
 ### 📂 `config.py`: Parametrización y Calibración Metrológica
-Este módulo actúa como el archivo de configuración global. Su importancia reside en la **estandarización de la salida**:
-- **Calibración Física**: Define `GS_FOV_W_MM` (14.6 mm) y `GS_FOV_H_MM` (10.9 mm), permitiendo transformar dimensiones de píxeles en unidades métricas reales.
-- **Diccionarios de Clases**: Mapea identificadores de red a nombres legibles (Abrasion, Crack, Holes, etc.) y asigna una identidad cromática única (`CLASS_COLORS_RGB`) para la visualización de máscaras.
-- **Gestión de Rutas**: Centraliza la localización de los pesos de los 5 modelos integrados, facilitando el despliegue en diferentes entornos.
+- **Calibración Física**: Define `GS_FOV_W_MM` y `GS_FOV_H_MM`, transformando píxeles en unidades métricas reales.
+- **Gestión de Rutas**: Centraliza la localización de los pesos de los 5 modelos integrados.
 
 ### 📂 `utils_vision.py`: Metrología y Descriptores de Haralick
-Es el núcleo científico del proyecto. La función crítica `_compute_metrics` realiza un análisis exhaustivo de cada defecto segmentado:
-- **Metrología Dimensional**: Calcula el área real en **mm²** y el perímetro, permitiendo cuantificar la severidad del defecto más allá de la simple detección visual.
-- **Análisis de Textura (GLCM)**: Utiliza la *Gray-Level Co-occurrence Matrix* para extraer descriptores espaciales:
-  - **Energía y Homogeneidad**: Miden la uniformidad de la superficie del defecto.
-  - **Entropía**: Cuantifica el desorden o complejidad de la textura táctil.
-- **Lógica Heurística de Reparabilidad**: Implementa las funciones de dibujo y análisis que aplican reglas de negocio basadas en el área, la excentricidad (forma del defecto) y los valores GLCM para clasificar automáticamente si una prenda es **"REPARABLE"** o **"NON-REPAIRABLE"**.
+- **Metrología Dimensional**: Calcula el área real en **mm²** y el perímetro de cada defecto.
+- **Análisis de Textura (GLCM)**: Extrae descriptores de Energía, Homogeneidad y Entropía para caracterizar la severidad táctil.
+- **Reglas de Negocio**: Evalúa heurísticamente si un defecto es reparable basándose en su morfología y textura.
 
-### 📂 `workers.py`: Procesamiento Asíncrono y Gestión de Modelos
-Para mantener una interfaz fluida (30+ FPS), este script traslada la carga computacional a hilos secundarios:
-- **`GSThread`**: Gestiona el buffer de la cámara GelSight. Implementa un control de intervalos de inferencia para evitar el *lag* acumulativo en el procesamiento de vídeo en directo.
-- **`ModelLoader` & `ClassifyLoader`**: Cargadores especializados que gestionan el estado de carga de redes pesadas. Implementan soluciones para la carga segura de pesos en **PyTorch** (`weights_only=False`) y la reconstrucción de arquitecturas en **Keras/TensorFlow**.
-- **`InferenceWorker`**: Ejecuta la lógica de segmentación paralela para los tres modelos principales, permitiendo al usuario comparar el desempeño de YOLOv12, YOLOv26 y RF-DETR de forma simultánea.
+### 📂 `workers.py`: Procesamiento Asíncrono
+- **`GSThread`**: Gestiona el flujo de la cámara en tiempo real con buffer optimizado para evitar latencia.
+- **`ModelLoader`**: Carga asíncrona de modelos PyTorch, Ultralytics y TensorFlow/Keras.
+- **`InferenceWorker`**: Ejecuta la segmentación paralela sin bloquear el hilo principal de la UI.
 
-### 📂 `ui_components.py`: Interfaz de Usuario de Alta Fidelidad
-Este módulo eleva la experiencia de usuario mediante técnicas de diseño modernas:
-- **Glassmorphism & QPainter**: Utiliza `QPainter` y gradientes lineales/radiales para crear tarjetas con efectos de transparencia y desenfoque, alineándose con estándares de software industrial premium.
-- **Animaciones Dinámicas**: Implementa `QPropertyAnimation` para transiciones de opacidad y `QTimer` para el movimiento fluido de los orbes del fondo animado.
-- **Optimización de Renderizado**: Gestión eficiente de `QPixmap` para el dibujo de máscaras de segmentación sobre los frames de cámara, evitando parpadeos de memoria (*flickering*) mediante actualizaciones dobles de buffer.
-
-### 📂 `main.py`: Gestión de Estado y Event Loop
-El punto de entrada que une la lógica con la presentación:
-- **MainWindow**: Actúa como el controlador principal. Implementa el diseño de dos pestañas:
-  - **OfflineTab**: Para la investigación forense de datasets pre-adquiridos, filtrado por clases y exportación de informes técnicos.
-  - **OnlineTab**: Para la inspección en línea, controlando el encendido/apagado del sensor y la visualización de métricas en vivo.
-- **Signals & Slots**: Utiliza el sistema de comunicación de Qt para enviar métricas de los hilos de visión (`workers`) a las barras de progreso y etiquetas de la UI, garantizando que el hilo principal nunca se bloquee.
+### 📂 `ui_components.py`: Interfaz de Alta Fidelidad
+- **Glassmorphism**: Renderizado avanzado con `QPainter` para efectos de transparencia y profundidad.
+- **Animaciones**: Uso de `QPropertyAnimation` para una experiencia de usuario fluida y profesional.
 
 ---
 
-## 🚀 Tecnologías Utilizadas
+## 🚀 Requisitos e Instalación
 
-- **Interfaz Gráfica**: `PyQt6` (Core framework, QPainter, Animations).
-- **Visión Artificial**: `OpenCV` (Procesamiento de imagen), `Scikit-Image` (GLCM, RegionProps).
-- **Inteligencia Artificial**:
-  - `PyTorch` & `Torchvision` (Arquitectura ResNet18 y RF-DETR).
-  - `Ultralytics` (Modelos YOLOv12-seg y YOLOv26-seg).
-  - `TensorFlow / Keras` (Clasificador CNN personalizado).
-- **Cómputo Numérico**: `NumPy` (Manipulación de arrays de máscaras).
+1.  **Clonar el repositorio** (necesario [Git LFS](https://git-lfs.com/) para descargar los pesos):
+    ```bash
+    git clone https://github.com/Pae14/viewer_project.git
+    cd viewer_project
+    ```
+
+2.  **Instalar dependencias**:
+    ```bash
+    pip install PyQt6 opencv-python numpy torch torchvision ultralytics scikit-image tensorflow
+    ```
 
 ---
 
-> **Nota Académica**: Este proyecto ha sido desarrollado como parte de un Trabajo de Fin de Grado, integrando conceptos de ingeniería de software, inteligencia artificial y metrología industrial en una única herramienta de nivel profesional.
+## 📖 Guía de Uso
+
+Para iniciar la aplicación, ejecuta el script principal:
+
+```bash
+python3 main.py
+```
+
+- **Modo Offline**: Navega por datasets locales, aplica filtros de clase y exporta informes técnicos.
+- **Modo Online**: Inspección en tiempo real desde el sensor GelSight Mini con visualización de métricas en vivo.
+- **Atajos**: Usa `Flechas` para navegar y `E` para exportar capturas analizadas.
+
+---
+
+> **Nota Académica**: Este proyecto ha sido desarrollado como parte de un Trabajo de Fin de Grado (TFG), integrando ingeniería de software avanzada e inteligencia artificial para la industria 4.0.

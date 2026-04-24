@@ -2,25 +2,23 @@ from PyQt6.QtGui import QColor
 import os
 
 
+# https://www.gelsight.com/wp-content/uploads/2023/01/GelSight_Datasheet_GSMini_12.20.22.pdf
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  CONFIGURATION & PATHS
 # ─────────────────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(BASE_DIR)
 
-# Ahora construimos las rutas partiendo de la carpeta padre
 YOLO12_PATH    = os.path.join(BASE_DIR, 'models', 'yolo12', 'best.pt')
 YOLO26_PATH    = os.path.join(BASE_DIR, 'models', 'yolo26', 'best.pt')
 RFDETR_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_best_ema.pt')
 RESNET_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_epoch_49.pth.tar')
 CNN_CLS_PATH   = os.path.join(BASE_DIR, 'models', 'best_model.weights.h5')
 
-
-# Lo mismo para las imágenes de prueba (supongo que la carpeta "data" también está fuera)
 IMG_DIR        = os.path.join(PARENT_DIR, 'data', 'test2', 'images')
 LBL_DIR        = os.path.join(PARENT_DIR, 'data', 'test2', 'labels')
 
-# La carpeta donde guardar exportaciones la podemos dejar dentro de viewer_project o donde prefieras
 SAVE_DIR       = os.path.join(BASE_DIR, 'exports')
 CONF_THRESHOLD = 0.25
 GELSIGHT_CAM   = 0
@@ -30,8 +28,8 @@ INFER_INTERVAL = 1  # Será modificable dinámicamente
 # ─────────────────────────────────────────────────────────────────────────────
 #  GELSIGHT MINI SPECS (Calibration)
 # ─────────────────────────────────────────────────────────────────────────────
-GS_FOV_W_MM = 14.6
-GS_FOV_H_MM = 10.9
+GS_FOV_W_MM = 18.6
+GS_FOV_H_MM = 14.3
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  CLASS / COLOR DEFINITIONS 

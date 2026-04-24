@@ -9,6 +9,7 @@ import config
 from config import *
 from utils_vision import _draw_yolo, _draw_rfdetr
 
+# https://doc.qt.io/qtforpython-6/PySide6/QtCore/QThread.html
 class ModelLoader(QThread):
     progress = pyqtSignal(str)
     finished = pyqtSignal(object, object, object)

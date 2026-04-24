@@ -13,8 +13,3 @@ dist/
 .idea/
 .DS_Store
 exports/
-*.pt
-*.pth
-*.pth.tar
-*.h5
-*.weights.h5

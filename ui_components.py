@@ -11,6 +11,12 @@ from PyQt6.QtGui import (
 
 from config import *
 
+
+# https://doc.qt.io/qtforpython-6.5/overviews/stylesheet-reference.html
+# https://doc.qt.io/qtforpython-6/PySide6/QtGui/QPainter.html
+# https://doc.qt.io/qtforpython-6.5/overviews/animation-overview.html
+# https://doc.qt.io/qtforpython-6/PySide6/QtGui/QImage.html
+
 def _lbl(text, size=12, weight=400, color=None, align=None):
     l = QLabel(text)
     col = color or P["text"]

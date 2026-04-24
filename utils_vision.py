@@ -3,6 +3,9 @@ import math
 import numpy as np
 from config import *
 
+# https://scikit-image.org/docs/stable/api/skimage.measure.html
+# https://scikit-image.org/docs/stable/api/skimage.feature.html
+
 def _compute_metrics(mask_bool, gray_img):
     h, w = mask_bool.shape
     mm2_per_pixel = (GS_FOV_W_MM * GS_FOV_H_MM) / (w * h)
@@ -50,6 +53,7 @@ def _compute_metrics(mask_bool, gray_img):
             roi_small = roi_masked
             maxd = 128
             rh, rw = roi_masked.shape
+
             if max(rh, rw) > maxd:
                 scale = maxd / max(rh, rw)
                 roi_small = cv2.resize(roi_masked, (max(1, int(rw * scale)), max(1, int(rh * scale))), interpolation=cv2.INTER_AREA)

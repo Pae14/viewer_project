@@ -19,6 +19,10 @@ from workers import *
 from ui_components import _lbl, _div, _combo, _spin, _input
 
 
+# https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QApplication.html
+# https://doc.qt.io/qtforpython-6/tutorials/basictutorial/signals_and_slots.html
+# https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QLayout.html
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
@@ -75,6 +79,7 @@ class OfflineTab(QWidget):
         self.mr = mr; self.cr = cls_ref; self._sb = sb; self._tb = tb
         self.paths = []; self.all_paths = []; self.idx = 0
         self._arrs = [None]*4; self._wk = None; self._ntp = {}; self._sub = self.SUB_DET
+        self.img_dir = config.IMG_DIR; self.lbl_dir = config.LBL_DIR
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._bsb(); self._btb(); self._bc(); self._load()
 
@@ -88,6 +93,11 @@ class OfflineTab(QWidget):
         self.sp_idx = _spin(); self.sp_idx.setMinimum(1)
         go = PillBtn("Go"); go.setFixedWidth(54); go.clicked.connect(self._gos)
         jr.addWidget(self.sp_idx); jr.addWidget(go); nav.addL(jr)
+
+        lr = QHBoxLayout(); lr.setSpacing(6)
+        self.b_load_fld = PillBtn("Load Folder"); self.b_load_img = PillBtn("Load Image")
+        self.b_load_fld.clicked.connect(self._choose_folder); self.b_load_img.clicked.connect(self._choose_image)
+        lr.addWidget(self.b_load_fld); lr.addWidget(self.b_load_img); nav.addL(lr)
 
         flt = self._sb.sec("Filter by class", open=True)
         self.cls_cb = _combo(); self.cls_cb.addItem("All classes", -1)
@@ -203,15 +213,45 @@ class OfflineTab(QWidget):
         self._run()
 
     def _load(self):
-        self.all_paths = sorted(glob.glob(os.path.join(IMG_DIR, '*.png')) + glob.glob(os.path.join(IMG_DIR, '*.jpg')))
+        self.all_paths = sorted(glob.glob(os.path.join(self.img_dir, '*.png')) + glob.glob(os.path.join(self.img_dir, '*.jpg')))
         self.paths = self.all_paths[:]
         self._ntp = {os.path.splitext(os.path.basename(p))[0]: p for p in self.all_paths}
         c = QCompleter(sorted(self._ntp.keys()), self); c.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.srch.setCompleter(c); self.sp_idx.setMaximum(max(1, len(self.paths)))
         self._uc(); self.status_msg.emit(f"{len(self.paths)} images found")
 
+    def _choose_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Folder", self.img_dir)
+        if d:
+            self.img_dir = d
+            # Try to find labels: sibling 'labels' or subfolder 'labels'
+            p = os.path.dirname(d)
+            cl_sib = os.path.join(p, "labels")
+            cl_sub = os.path.join(d, "labels")
+            if os.path.exists(cl_sib): self.lbl_dir = cl_sib
+            elif os.path.exists(cl_sub): self.lbl_dir = cl_sub
+            else: self.lbl_dir = d
+            self.idx = 0; self._load()
+            if self.paths: self._run()
+
+    def _choose_image(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select Image", self.img_dir, "Images (*.png *.jpg *.jpeg)")
+        if f:
+            d = os.path.dirname(f)
+            self.img_dir = d
+            p = os.path.dirname(d)
+            cl_sib = os.path.join(p, "labels")
+            cl_sub = os.path.join(d, "labels")
+            if os.path.exists(cl_sib): self.lbl_dir = cl_sib
+            elif os.path.exists(cl_sub): self.lbl_dir = cl_sub
+            else: self.lbl_dir = d
+            self._load()
+            if f in self.paths: self.idx = self.paths.index(f)
+            else: self.idx = 0
+            self._run()
+
     def _cls4(self, p):
-        b = os.path.splitext(os.path.basename(p))[0]; lp = os.path.join(LBL_DIR, b + '.txt')
+        b = os.path.splitext(os.path.basename(p))[0]; lp = os.path.join(self.lbl_dir, b + '.txt')
         if not os.path.exists(lp): return set()
         with open(lp) as f: lines = f.readlines()
         return {int(float(l.split()[0])) for l in lines if l.strip()}

@@ -116,6 +116,7 @@ def _draw_yolo(bgr, result, names):
             metrics = _compute_metrics(mb, gray)
             
             area_mm2 = metrics["area_mm2"]
+            perim_mm = metrics["perimeter_mm"]
             ecc = metrics["eccentricity"]
             energia = metrics["glcm_energy"]
             entropia = metrics["glcm_entropy"]
@@ -123,13 +124,18 @@ def _draw_yolo(bgr, result, names):
             has_defect = True
             defect_repairable = True
             
-            if int(cid) == 3:
-                defect_repairable = False
-            elif int(cid) == 1:
-                if ecc > 0.85 and area_mm2 > 5.0:
+            # Lógica de reparabilidad: Si CUALQUIERA de las condiciones falla (OR), es NO REPARABLE
+            if int(cid) == 3: # Material loss - Holes
+                if area_mm2 > 20.5 and perim_mm > 18.6:
                     defect_repairable = False
-            elif int(cid) in [0, 2]:
-                if area_mm2 > 30.0 or energia < 0.05 or entropia > 7.0:
+            elif int(cid) == 1: # Crack
+                if area_mm2 > 10.36 or perim_mm > 14.2 or ecc < 0.96 or entropia > 9.30:
+                    defect_repairable = False
+            elif int(cid) == 0: # Scratch-Abrasion
+                if energia < 0.04 or entropia > 8.46:
+                    defect_repairable = False
+            elif int(cid) == 2: # Scratch-Friction
+                if energia < 0.04 or entropia > 8.75:
                     defect_repairable = False
 
             if not defect_repairable:
@@ -213,6 +219,7 @@ def _draw_rfdetr(bgr, preds):
             metrics = _compute_metrics(mask, gray)
             
             area_mm2 = metrics["area_mm2"]
+            perim_mm = metrics["perimeter_mm"]
             ecc = metrics["eccentricity"]
             energia = metrics["glcm_energy"]
             entropia = metrics["glcm_entropy"]
@@ -220,13 +227,18 @@ def _draw_rfdetr(bgr, preds):
             has_defect = True
             defect_repairable = True
             
-            if int(cid) == 3:
-                defect_repairable = False
-            elif int(cid) == 1:
-                if ecc > 0.85 and area_mm2 > 5.0:
+            # Lógica de reparabilidad: Si CUALQUIERA de las condiciones falla (OR), es NO REPARABLE
+            if int(cid) == 3: # Material loss - Holes
+                if area_mm2 > 20.5 or perim_mm > 18.6:
                     defect_repairable = False
-            elif int(cid) in [0, 2]:
-                if area_mm2 > 30.0 or energia < 0.05 or entropia > 7.0:
+            elif int(cid) == 1: # Crack
+                if area_mm2 > 10.36 or perim_mm > 14.2 or ecc < 0.98 or entropia > 9.28:
+                    defect_repairable = False
+            elif int(cid) == 0: # Scratch-Abrasion
+                if energia < 0.04 or entropia > 8.46:
+                    defect_repairable = False
+            elif int(cid) == 2: # Scratch-Friction
+                if energia < 0.04 or entropia > 8.75:
                     defect_repairable = False
 
             if not defect_repairable:

@@ -206,18 +206,15 @@ class ROS2Thread(QThread):
                 if not self._run: return
                 
                 try:
-                    # 1. Convertimos la imagen de ROS a OpenCV
+
                     frm = self._bridge.imgmsg_to_cv2(msg, 'bgr8')
                     
-                    # 2. Sincronizamos configuración de la interfaz
                     with QMutexLocker(self._mx):
                         if self._nc is not None: self.conf = self._nc; self._nc = None
                         if self._nm is not None: self.midx = self._nm; self._nm = None
 
-                    # 3. ENVIAMOS A PANTALLA INMEDIATAMENTE (sin esperar a 30fps)
                     self.frame_ready.emit(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB).copy())
                         
-                    # 4. Lanzamos la IA si no está ocupada con otro frame
                     if not self._is_inferring:
                         self._is_inferring = True
                         threading.Thread(target=self._do_inference, args=(frm.copy(), self.midx, self.conf), daemon=True).start()

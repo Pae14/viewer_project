@@ -2,7 +2,7 @@
 
 Este proyecto presenta una solución integral de **inspección visual-táctil** diseñada para la detección, segmentación y clasificación de defectos superficiales en entornos industriales. Utilizando el sensor biomimético **GelSight Mini**, la aplicación trasciende la visión convencional al capturar la topografía microscópica de las superficies, permitiendo un análisis de metrología dimensional y textural de alta precisión.
 
-La herramienta integra algoritmos de **Deep Learning** de última generación (YOLOv12, YOLOv26, RF-DETR) con técnicas de **Visión Artificial clásica** (GLCM de Haralick) y reglas heurísticas de negocio para determinar de forma autónoma la integridad de los componentes inspeccionados.
+La herramienta integra algoritmos de **Deep Learning** de última generación (YOLOv12, YOLOv26, RF-DETR) con técnicas de **Visión Artificial clásica** (GLCM de Haralick) y reglas de negocio basadas en estudios estadísticos para determinar de forma autónoma la integridad de los componentes inspeccionados.
 
 ---
 
@@ -11,9 +11,9 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
 1.  **`main.py`**: **Orquestador Central**. Gestiona el ciclo de vida de la aplicación y la interfaz principal.
-2.  **`models/`**: Carpeta que contiene los pesos de los modelos (gestionada por **Git LFS**).
-3.  **`workers.py`**: **Capa de Concurrencia**. Implementa el procesamiento multihilo (`QThread`) para la ejecución asíncrona de la IA.
-4.  **`utils_vision.py`**: **Motor Analítico**. Contiene la lógica matemática para metrología y descriptores GLCM.
+2.  **`models/`**: Carpeta que contiene los pesos de los modelos.
+3.  **`workers.py`**: **Capa de Concurrencia e Integración**. Implementa el procesamiento multihilo y la comunicación con **ROS 2**.
+4.  **`utils_vision.py`**: **Motor Analítico**. Contiene la lógica matemática para metrología y criterios de reparabilidad.
 5.  **`ui_components.py`**: **Framework de UI**. Define la estética *Glassmorphism* y widgets personalizados.
 6.  **`config.py`**: **Fuente de Verdad**. Centraliza constantes de calibración y rutas globales.
 
@@ -21,23 +21,31 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 
 ## 🛠️ Desglose Técnico Detallado (Core Modules)
 
-### 📂 `config.py`: Parametrización y Calibración Metrológica
-- **Calibración Física**: Define `GS_FOV_W_MM` y `GS_FOV_H_MM`, transformando píxeles en unidades métricas reales.
-- **Gestión de Rutas**: Centraliza la localización de los pesos de los 5 modelos integrados.
+### 📂 `utils_vision.py`: Metrología y Lógica de Reparabilidad
+- **Metrología Dimensional**: Calcula el área real en **mm²**, perímetro, excentricidad y compactación.
+- **Análisis de Textura (GLCM)**: Extrae descriptores de Energía y Entropía para caracterizar la severidad táctil.
+- **Criterios de Reparabilidad Estrictos**: Evalúa si un defecto es **NON-REPAIRABLE** basándose en umbrales estadísticos (Medias/Máximos):
+    - **Hole**: Área > 20.5 mm² o Perímetro > 18.6 mm.
+    - **Crack**: Área > 6.67 mm², Perímetro > 14.13 mm, Excentricidad < 0.98 o Entropía > 9.28.
+    - **Abrasion**: Energía < 0.12 o Entropía > 8.46.
+    - **Friction**: Energía < 0.06 o Entropía > 8.75.
 
-### 📂 `utils_vision.py`: Metrología y Descriptores de Haralick
-- **Metrología Dimensional**: Calcula el área real en **mm²** y el perímetro de cada defecto.
-- **Análisis de Textura (GLCM)**: Extrae descriptores de Energía, Homogeneidad y Entropía para caracterizar la severidad táctil.
-- **Reglas de Negocio**: Evalúa heurísticamente si un defecto es reparable basándose en su morfología y textura.
-
-### 📂 `workers.py`: Procesamiento Asíncrono
-- **`GSThread`**: Gestiona el flujo de la cámara en tiempo real con buffer optimizado para evitar latencia.
+### 📂 `workers.py`: Procesamiento Asíncrono e Integración ROS 2
+- **`GSThread`**: Gestiona el flujo de la cámara local (USB) en tiempo real.
+- **`ROS2Thread`**: Implementa un nodo de **ROS 2** que se suscribe a topics de imagen (`sensor_msgs/Image`). 
+    - Soporte para frecuencias bajas (optimizado para 1Hz).
+    - Compatibilidad de QoS (**Best Effort**) para redes inestables o drones.
+    - Conversión mediante `cv_bridge`.
 - **`ModelLoader`**: Carga asíncrona de modelos PyTorch, Ultralytics y TensorFlow/Keras.
-- **`InferenceWorker`**: Ejecuta la segmentación paralela sin bloquear el hilo principal de la UI.
 
-### 📂 `ui_components.py`: Interfaz de Alta Fidelidad
-- **Glassmorphism**: Renderizado avanzado con `QPainter` para efectos de transparencia y profundidad.
-- **Animaciones**: Uso de `QPropertyAnimation` para una experiencia de usuario fluida y profesional.
+---
+
+## 🤖 Integración con ROS 2 (Robot Operating System)
+
+La aplicación actúa como un nodo nativo de ROS 2, permitiendo la integración con brazos robóticos gestionados por **MoveIt** y simulaciones en **Gazebo**.
+
+- **Selección de Origen**: Permite conmutar dinámicamente entre cámara local y cualquier Topic de ROS 2 desde la interfaz.
+- **Configuración Dinámica**: El nombre del topic se puede definir en tiempo de ejecución sin modificar el código.
 
 ---
 
@@ -52,6 +60,8 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 2.  **Instalar dependencias**:
     ```bash
     pip install PyQt6 opencv-python numpy torch torchvision ultralytics scikit-image tensorflow
+    # Para soporte ROS 2:
+    sudo apt install ros-<distro>-cv-bridge
     ```
 
 ---
@@ -65,7 +75,7 @@ python3 main.py
 ```
 
 - **Modo Offline**: Navega por datasets locales, aplica filtros de clase y exporta informes técnicos.
-- **Modo Online**: Inspección en tiempo real desde el sensor GelSight Mini con visualización de métricas en vivo.
+- **Modo Online**: Inspección en tiempo real (USB o ROS 2) con visualización de métricas y estado de reparabilidad en vivo.
 - **Atajos**: Usa `Flechas` para navegar y `E` para exportar capturas analizadas.
 
 ---

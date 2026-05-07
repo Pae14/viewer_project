@@ -6,7 +6,6 @@ import argparse
 import numpy as np
 import sys
 
-# Añadir el directorio actual al path para importar módulos locales
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
@@ -19,7 +18,6 @@ except ImportError as e:
     sys.exit(1)
 
 def get_images_recursive(base_folder, max_depth=2):
-    """Busca imágenes hasta un nivel determinado de profundidad."""
     img_extensions = ("*.png", "*.jpg", "*.jpeg")
     all_imgs = []
     

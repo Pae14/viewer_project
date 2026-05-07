@@ -390,11 +390,28 @@ class OnlineTab(QWidget):
         self._bsb(); self._btb(); self._bc()
 
     def _bsb(self):
-        cam = self._sb.sec("GelSight Mini", open=True)
-        cr = QHBoxLayout(); cr.setSpacing(8)
-        cr.addWidget(_lbl("Camera", 12, 400, P["text2"]))
-        self.cam_sp = _spin(); self.cam_sp.setMinimum(0); self.cam_sp.setMaximum(10); self.cam_sp.setValue(GELSIGHT_CAM); self.cam_sp.setFixedWidth(70)
-        cr.addWidget(self.cam_sp); cam.addL(cr)
+        cam = self._sb.sec("Source Selection", open=True)
+
+        self.src_cb = _combo()
+        self.src_cb.addItem("Local Camera", 0)
+        self.src_cb.addItem("ROS 2 Topic", 1)
+        self.src_cb.currentIndexChanged.connect(self._on_src_changed)
+        cam.add(self.src_cb)
+
+        # Local Cam settings
+        self.cam_fr = QFrame()
+        cl = QHBoxLayout(self.cam_fr); cl.setContentsMargins(0,0,0,0)
+        cl.addWidget(_lbl("Device ID", 11, 400, P["text2"]))
+        self.cam_sp = _spin(); self.cam_sp.setMinimum(0); self.cam_sp.setValue(GELSIGHT_CAM)
+        cl.addWidget(self.cam_sp); cam.add(self.cam_fr)
+
+        # ROS 2 settings
+        self.ros_fr = QFrame(); self.ros_fr.hide()
+        rl = QVBoxLayout(self.ros_fr); rl.setContentsMargins(0,0,0,0)
+        rl.addWidget(_lbl("Topic Name", 11, 400, P["text2"]))
+        self.topic_in = _input("/camera/image_raw")
+        rl.addWidget(self.topic_in); cam.add(self.ros_fr)
+
         self.b_start = PillBtn("▶  Start", success=True); self.b_stop = PillBtn("■  Stop", danger=True)
         self.b_stop.setEnabled(False); self.b_start.clicked.connect(self._start); self.b_stop.clicked.connect(self._stop)
         cam.add(self.b_start); cam.add(self.b_stop)
@@ -444,12 +461,25 @@ class OnlineTab(QWidget):
             b = PillBadge(name, CLASS_COLORS_RGB[cid]); dcl.addWidget(b); self._dbadges[cid] = b
         dcl.addStretch(); lay.addWidget(dc)
 
+    def _on_src_changed(self):
+        is_ros = self.src_cb.currentData() == 1
+        self.cam_fr.setVisible(not is_ros)
+        self.ros_fr.setVisible(is_ros)
+
     def _start(self):
         if not self.mr[0]: self.status_msg.emit("Models not loaded yet."); return
         if self._streaming: return
         config.INFER_INTERVAL = self.ivl_sp.value() * 0.1
-        self._th = GSThread((self.mr[0], self.mr[1], self.mr[2]), self.cf_sl.value()/100.0, self.mdl_cb.currentData(), self.cam_sp.value())
-        # CÁMBIALA POR ESTA:
+        
+        models = (self.mr[0], self.mr[1], self.mr[2])
+        conf = self.cf_sl.value()/100.0
+        midx = self.mdl_cb.currentData()
+        
+        if self.src_cb.currentData() == 0:
+            self._th = GSThread(models, conf, midx, self.cam_sp.value())
+        else:
+            self._th = ROS2Thread(models, conf, midx, self.topic_in.text())
+            
         self._th.frame_ready.connect(lambda r: [setattr(self,'_lf',r), self.raw_p.set_image(r, animated=False)])
         self._th.result_ready.connect(self._on_result_ready)
         self._th.det_classes.connect(self._on_det)

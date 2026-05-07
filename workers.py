@@ -9,6 +9,17 @@ import config
 from config import *
 from utils_vision import _draw_yolo, _draw_rfdetr
 
+# Soporte para ROS 2
+try:
+    import rclpy
+    from rclpy.node import Node
+    from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+    from sensor_msgs.msg import Image as ROSImage
+    from cv_bridge import CvBridge
+    ROS2_AVAILABLE = True
+except ImportError:
+    ROS2_AVAILABLE = False
+
 # https://doc.qt.io/qtforpython-6/PySide6/QtCore/QThread.html
 # https://docs.python.org/3/library/threading.html
 class ModelLoader(QThread):
@@ -133,6 +144,101 @@ class GSThread(QThread):
                 
         cap.release()
         self.status.emit("Stream stopped.")
+
+
+class ROS2Thread(QThread):
+    frame_ready  = pyqtSignal(np.ndarray)
+    result_ready = pyqtSignal(np.ndarray, str, tuple, object)
+    det_classes  = pyqtSignal(set)
+    status       = pyqtSignal(str)
+
+    def __init__(self, models, conf, midx=0, topic='/camera/image_raw'):
+        super().__init__()
+        self.models = models; self.conf = conf; self.midx = midx; self.topic = topic
+        self._run = False; self._mx = QMutex(); self._nc = None; self._nm = None
+        self._is_inferring = False
+        self._bridge = None
+        if ROS2_AVAILABLE:
+            self._bridge = CvBridge()
+
+    def set_conf(self, v):
+        with QMutexLocker(self._mx): self._nc = v
+    def set_model(self, i):
+        with QMutexLocker(self._mx): self._nm = i
+    def stop(self): 
+        self._run = False
+
+    def _do_inference(self, frm, midx, conf):
+        y12, y26, rf = self.models
+        try:
+            tmp = "/tmp/_ros2_gs.png"; cv2.imwrite(tmp, frm); det = set()
+            if midx == 0:
+                r = y12.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+                if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
+                drw, txt, col, mtr = _draw_yolo(frm, r, list(y12.names.values()))
+            elif midx == 1:
+                r = y26.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+                if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
+                drw, txt, col, mtr = _draw_yolo(frm, r, list(y26.names.values()))
+            else:
+                r = rf.predict(tmp, threshold=conf, resolution=672)
+                if r is not None and len(r) > 0: det = {int(c) for c in r.class_id}
+                drw, txt, col, mtr = _draw_rfdetr(frm, r)
+            self.result_ready.emit(drw, txt, col, mtr)
+            self.det_classes.emit(det)
+        except Exception as ex:
+            self.status.emit(f"Inference error: {ex}")
+        finally:
+            self._is_inferring = False
+
+    def run(self):
+        if not ROS2_AVAILABLE:
+            self.status.emit("ERROR: ROS 2 (rclpy) not found.")
+            return
+
+        try:
+            if not rclpy.ok():
+                rclpy.init()
+            node = Node('defect_detector_ui')
+            self.status.emit(f"ROS 2 Node started — Subscribing to {self.topic}")
+            
+            def image_callback(msg):
+                if not self._run: return
+                
+                try:
+                    # 1. Convertimos la imagen de ROS a OpenCV
+                    frm = self._bridge.imgmsg_to_cv2(msg, 'bgr8')
+                    
+                    # 2. Sincronizamos configuración de la interfaz
+                    with QMutexLocker(self._mx):
+                        if self._nc is not None: self.conf = self._nc; self._nc = None
+                        if self._nm is not None: self.midx = self._nm; self._nm = None
+
+                    # 3. ENVIAMOS A PANTALLA INMEDIATAMENTE (sin esperar a 30fps)
+                    self.frame_ready.emit(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB).copy())
+                        
+                    # 4. Lanzamos la IA si no está ocupada con otro frame
+                    if not self._is_inferring:
+                        self._is_inferring = True
+                        threading.Thread(target=self._do_inference, args=(frm.copy(), self.midx, self.conf), daemon=True).start()
+                except Exception as e:
+                    self.status.emit(f"ROS Callback error: {e}")
+
+            qos_profile = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=1
+            )
+            node.create_subscription(ROSImage, self.topic, image_callback, qos_profile=qos_profile)
+            self._run = True
+            
+            while self._run:
+                rclpy.spin_once(node, timeout_sec=0.1)
+                
+            node.destroy_node()
+            self.status.emit("ROS 2 Subscription stopped.")
+        except Exception as ex:
+            self.status.emit(f"ROS 2 Error: {ex}")
 
 
 class ClassifyWorker(QThread):

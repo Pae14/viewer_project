@@ -13,3 +13,6 @@ dist/
 .idea/
 .DS_Store
 exports/
+install/
+log/
+build/

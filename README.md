@@ -6,77 +6,57 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 
 ---
 
+## 🤖 Funcionamiento del Nodo de ROS 2
+
+La aplicación ha sido diseñada para actuar como un **nodo nativo de ROS 2**, permitiendo una integración fluida con brazos robóticos (MoveIt) y simuladores (Gazebo).
+
+### 🛰️ Comunicación y Suscripción Dinámica
+A diferencia de otros sistemas con configuraciones rígidas, esta interfaz permite una **sintonización dinámica de topics**:
+- **Interfaz Flexible**: El usuario puede escribir el nombre del topic (ej. `/uav/camera/image_raw`) directamente en la interfaz. Al pulsar "Start", el sistema crea una suscripción en tiempo real a ese canal específico.
+- **Protocolo de Comunicación**: El nodo actúa como un *Subscriber* que escucha mensajes de tipo `sensor_msgs/Image`.
+- **Gestión de QoS (Best Effort)**: Para garantizar la visualización incluso en redes inalámbricas o con drones (donde puede haber pérdida de paquetes), se utiliza un perfil de **Calidad de Servicio (QoS) de tipo "Best Effort"**. Esto permite recibir datos de forma asíncrona y robusta.
+
+### 🌉 El Puente: `cv_bridge`
+La magia de la integración reside en la conversión de datos. ROS 2 transporta las imágenes en un formato binario optimizado para robótica. La interfaz utiliza **`cv_bridge`** para traducir estos mensajes a matrices de **OpenCV (NumPy arrays)** en tiempo real, permitiendo que los modelos de Inteligencia Artificial procesen la imagen como si viniera de una cámara local.
+
+### ⏱️ Optimización para Bajas Frecuencias
+El sistema está optimizado para trabajar con streams de baja frecuencia (como **1 Hz**). Gracias a su arquitectura multihilo, la interfaz no se bloquea esperando datos; en cuanto llega un frame, se procesa, se analiza su reparabilidad y se muestra en pantalla instantáneamente.
+
+---
+
 ## 🏗️ Arquitectura del Sistema (File Structure)
 
-El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
-
-1.  **`main.py`**: **Orquestador Central**. Gestiona el ciclo de vida de la aplicación y la interfaz principal.
-2.  **`models/`**: Carpeta que contiene los pesos de los modelos.
-3.  **`workers.py`**: **Capa de Concurrencia e Integración**. Implementa el procesamiento multihilo y la comunicación con **ROS 2**.
-4.  **`utils_vision.py`**: **Motor Analítico**. Contiene la lógica matemática para metrología y criterios de reparabilidad.
-5.  **`ui_components.py`**: **Framework de UI**. Define la estética *Glassmorphism* y widgets personalizados.
-6.  **`config.py`**: **Fuente de Verdad**. Centraliza constantes de calibración y rutas globales.
+1.  **`main.py`**: Orquestador Central y gestión de la interfaz PyQt6.
+2.  **`workers.py`**: Capa de Concurrencia. Contiene la clase `ROS2Thread` que gestiona el ciclo de vida del nodo y la comunicación.
+3.  **`utils_vision.py`**: Motor Analítico. Contiene la lógica de metrología y los umbrales de reparabilidad.
+4.  **`config.py`**: Fuente de Verdad para calibración y rutas de modelos.
 
 ---
 
-## 🛠️ Desglose Técnico Detallado (Core Modules)
+## 🛠️ Lógica de Reparabilidad (Umbrales Estadísticos)
 
-### 📂 `utils_vision.py`: Metrología y Lógica de Reparabilidad
-- **Metrología Dimensional**: Calcula el área real en **mm²**, perímetro, excentricidad y compactación.
-- **Análisis de Textura (GLCM)**: Extrae descriptores de Energía y Entropía para caracterizar la severidad táctil.
-- **Criterios de Reparabilidad Estrictos**: Evalúa si un defecto es **NON-REPAIRABLE** basándose en umbrales estadísticos (Medias/Máximos):
-    - **Hole**: Área > 20.5 mm² o Perímetro > 18.6 mm.
-    - **Crack**: Área > 6.67 mm², Perímetro > 14.13 mm, Excentricidad < 0.98 o Entropía > 9.28.
-    - **Abrasion**: Energía < 0.12 o Entropía > 8.46.
-    - **Friction**: Energía < 0.06 o Entropía > 8.75.
+El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándose en las medias y máximos de los parámetros analizados:
 
-### 📂 `workers.py`: Procesamiento Asíncrono e Integración ROS 2
-- **`GSThread`**: Gestiona el flujo de la cámara local (USB) en tiempo real.
-- **`ROS2Thread`**: Implementa un nodo de **ROS 2** que se suscribe a topics de imagen (`sensor_msgs/Image`). 
-    - Soporte para frecuencias bajas (optimizado para 1Hz).
-    - Compatibilidad de QoS (**Best Effort**) para redes inestables o drones.
-    - Conversión mediante `cv_bridge`.
-- **`ModelLoader`**: Carga asíncrona de modelos PyTorch, Ultralytics y TensorFlow/Keras.
-
----
-
-## 🤖 Integración con ROS 2 (Robot Operating System)
-
-La aplicación actúa como un nodo nativo de ROS 2, permitiendo la integración con brazos robóticos gestionados por **MoveIt** y simulaciones en **Gazebo**.
-
-- **Selección de Origen**: Permite conmutar dinámicamente entre cámara local y cualquier Topic de ROS 2 desde la interfaz.
-- **Configuración Dinámica**: El nombre del topic se puede definir en tiempo de ejecución sin modificar el código.
+- **Hole**: Área > 20.5 mm² o Perímetro > 18.6 mm.
+- **Crack**: Área > 6.67 mm², Perímetro > 14.13 mm, Excentricidad < 0.98 o Entropía > 9.28.
+- **Abrasion**: Energía < 0.12 o Entropía > 8.46.
+- **Friction**: Energía < 0.06 o Entropía > 8.75.
 
 ---
 
 ## 🚀 Requisitos e Instalación
 
-1.  **Clonar el repositorio** (necesario [Git LFS](https://git-lfs.com/) para descargar los pesos):
+1.  **Instalar ROS 2** (Humble, Foxy o compatible).
+2.  **Instalar dependencias de Python y ROS**:
     ```bash
-    git clone https://github.com/Pae14/viewer_project.git
-    cd viewer_project
+    pip install PyQt6 opencv-python numpy torch ultralytics scikit-image tensorflow
+    sudo apt install ros-${ROS_DISTRO}-cv-bridge
     ```
-
-2.  **Instalar dependencias**:
+3.  **Ejecución**:
     ```bash
-    pip install PyQt6 opencv-python numpy torch torchvision ultralytics scikit-image tensorflow
-    # Para soporte ROS 2:
-    sudo apt install ros-<distro>-cv-bridge
+    source /opt/ros/${ROS_DISTRO}/setup.bash
+    python3 main.py
     ```
-
----
-
-## 📖 Guía de Uso
-
-Para iniciar la aplicación, ejecuta el script principal:
-
-```bash
-python3 main.py
-```
-
-- **Modo Offline**: Navega por datasets locales, aplica filtros de clase y exporta informes técnicos.
-- **Modo Online**: Inspección en tiempo real (USB o ROS 2) con visualización de métricas y estado de reparabilidad en vivo.
-- **Atajos**: Usa `Flechas` para navegar y `E` para exportar capturas analizadas.
 
 ---
 

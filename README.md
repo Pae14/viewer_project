@@ -6,26 +6,37 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 
 ---
 
-## 🏗️ Arquitectura de Software y Concurrencia (Multi-threading)
+## 🏗️ Arquitectura del Sistema (File Structure)
 
-Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona** basada en `QThread` y `threading`:
+El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
-1.  **Hilo de Interfaz de Usuario (UI Thread)**: Gestiona el renderizado de la GUI, las animaciones *Glassmorphism* y la interacción con el usuario. Al estar desacoplado del procesamiento, la interfaz nunca se "congela".
-2.  **Hilo de Adquisición y Comunicaciones (`GSThread` / `ROS2Thread`)**: Gestiona la entrada de datos en tiempo real. En el modo ROS 2, este hilo mantiene la suscripción activa y realiza la conversión de mensajes mediante `cv_bridge` de forma independiente.
-3.  **Hilo de Inferencia de IA (Inference Thread)**: Los modelos YOLOv12/26 y RF-DETR se ejecutan en hilos paralelos de corta duración. Esto permite que el sistema analice un frame mientras el hilo de comunicaciones ya está recibiendo el siguiente, maximizando el rendimiento del hardware.
-4.  **Hilos de Carga Asíncrona (`ModelLoaders`)**: Permiten que la aplicación arranque instantáneamente mientras los modelos de IA (que pueden pesar cientos de MB) se cargan en segundo plano en la memoria de la GPU/CPU.
+1.  **`main.py`**: **Orquestador Central**. Gestiona el ciclo de vida de la aplicación, la navegación entre pestañas (Offline/Online) y la interfaz principal PyQt6.
+2.  **`workers.py`**: **Capa de Concurrencia e Integración**. Implementa el procesamiento multihilo (`QThread`) y el nodo de **ROS 2** para la suscripción a sensores externos.
+3.  **`utils_vision.py`**: **Motor Analítico**. Contiene los algoritmos de metrología, los descriptores de textura GLCM y la lógica de decisión de reparabilidad.
+4.  **`ui_components.py`**: **Framework de UI**. Define la estética *Glassmorphism*, los widgets personalizados y el sistema de animaciones.
+5.  **`config.py`**: **Fuente de Verdad**. Centraliza constantes de calibración (mm/px), rutas globales de modelos y parámetros de red.
+6.  **`export_metrics.py`**: **Herramienta de Reporting**. Script para el procesamiento por lotes y generación de informes CSV estadísticos.
 
 ---
 
-## 🤖 Funcionamiento del Nodo de ROS 2
+## 🏗️ Concurrencia y Rendimiento (Multi-threading)
 
-La aplicación actúa como un **nodo nativo de ROS 2**, permitiendo una integración fluida con brazos robóticos (MoveIt) y simuladores (Gazebo).
+Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona**:
 
-### 🛰️ Comunicación y Suscripción Dinámica
-- **Interfaz Flexible**: El usuario puede definir el nombre del topic (ej. `/uav/camera/image_raw`) en tiempo real.
-- **Protocolo de Comunicación**: Suscripción a mensajes `sensor_msgs/Image`.
-- **Gestión de QoS (Best Effort)**: Utiliza un perfil de **Calidad de Servicio (QoS)** optimizado para telemetría robótica, priorizando los datos más recientes y garantizando la compatibilidad con sensores en redes inalámbricas.
-- **Optimización de Frecuencia**: Arquitectura adaptativa capaz de procesar flujos desde **1 Hz** hasta **30 Hz** sin pérdida de frames ni latencia acumulada.
+- **UI Thread**: Renderizado de GUI y animaciones sin bloqueos.
+- **Acquisition Thread (`ROS2Thread`)**: Nodo de ROS 2 dedicado a la escucha y conversión de imágenes mediante `cv_bridge`.
+- **Inference Thread**: Ejecución paralela de modelos de IA, permitiendo el análisis de un frame mientras se recibe el siguiente.
+- **Async Loaders**: Carga de modelos pesados en segundo plano durante el inicio de la app.
+
+---
+
+## 🤖 Integración con ROS 2 (Robot Operating System)
+
+La aplicación actúa como un **nodo nativo de ROS 2**, ideal para entornos con brazos robóticos (MoveIt) y simuladores (Gazebo).
+
+- **Suscripción Dinámica**: Configuración del topic en tiempo real desde la interfaz gráfica.
+- **Gestión de QoS (Best Effort)**: Optimizado para telemetría robótica y drones, garantizando compatibilidad y baja latencia.
+- **Robustez**: Soporte nativo para frecuencias de imagen bajas (hasta **1 Hz**) sin afectar la estabilidad de la UI.
 
 ---
 

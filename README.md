@@ -6,36 +6,32 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 
 ---
 
-## 🤖 Funcionamiento del Nodo de ROS 2
+## 🏗️ Arquitectura de Software y Concurrencia (Multi-threading)
 
-La aplicación ha sido diseñada para actuar como un **nodo nativo de ROS 2**, permitiendo una integración fluida con brazos robóticos (MoveIt) y simuladores (Gazebo).
+Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona** basada en `QThread` y `threading`:
 
-### 🛰️ Comunicación y Suscripción Dinámica
-A diferencia de otros sistemas con configuraciones rígidas, esta interfaz permite una **sintonización dinámica de topics**:
-- **Interfaz Flexible**: El usuario puede escribir el nombre del topic (ej. `/uav/camera/image_raw`) directamente en la interfaz. Al pulsar "Start", el sistema crea una suscripción en tiempo real a ese canal específico.
-- **Protocolo de Comunicación**: El nodo actúa como un *Subscriber* que escucha mensajes de tipo `sensor_msgs/Image`.
-- **Gestión de QoS (Best Effort)**: Para garantizar la visualización incluso en redes inalámbricas o con drones (donde puede haber pérdida de paquetes), se utiliza un perfil de **Calidad de Servicio (QoS) de tipo "Best Effort"**. Esto permite recibir datos de forma asíncrona y robusta.
-
-### 🌉 El Puente: `cv_bridge`
-La magia de la integración reside en la conversión de datos. ROS 2 transporta las imágenes en un formato binario optimizado para robótica. La interfaz utiliza **`cv_bridge`** para traducir estos mensajes a matrices de **OpenCV (NumPy arrays)** en tiempo real, permitiendo que los modelos de Inteligencia Artificial procesen la imagen como si viniera de una cámara local.
-
-### ⏱️ Optimización para Bajas Frecuencias
-El sistema está optimizado para trabajar con streams de baja frecuencia (como **1 Hz**). Gracias a su arquitectura multihilo, la interfaz no se bloquea esperando datos; en cuanto llega un frame, se procesa, se analiza su reparabilidad y se muestra en pantalla instantáneamente.
+1.  **Hilo de Interfaz de Usuario (UI Thread)**: Gestiona el renderizado de la GUI, las animaciones *Glassmorphism* y la interacción con el usuario. Al estar desacoplado del procesamiento, la interfaz nunca se "congela".
+2.  **Hilo de Adquisición y Comunicaciones (`GSThread` / `ROS2Thread`)**: Gestiona la entrada de datos en tiempo real. En el modo ROS 2, este hilo mantiene la suscripción activa y realiza la conversión de mensajes mediante `cv_bridge` de forma independiente.
+3.  **Hilo de Inferencia de IA (Inference Thread)**: Los modelos YOLOv12/26 y RF-DETR se ejecutan en hilos paralelos de corta duración. Esto permite que el sistema analice un frame mientras el hilo de comunicaciones ya está recibiendo el siguiente, maximizando el rendimiento del hardware.
+4.  **Hilos de Carga Asíncrona (`ModelLoaders`)**: Permiten que la aplicación arranque instantáneamente mientras los modelos de IA (que pueden pesar cientos de MB) se cargan en segundo plano en la memoria de la GPU/CPU.
 
 ---
 
-## 🏗️ Arquitectura del Sistema (File Structure)
+## 🤖 Funcionamiento del Nodo de ROS 2
 
-1.  **`main.py`**: Orquestador Central y gestión de la interfaz PyQt6.
-2.  **`workers.py`**: Capa de Concurrencia. Contiene la clase `ROS2Thread` que gestiona el ciclo de vida del nodo y la comunicación.
-3.  **`utils_vision.py`**: Motor Analítico. Contiene la lógica de metrología y los umbrales de reparabilidad.
-4.  **`config.py`**: Fuente de Verdad para calibración y rutas de modelos.
+La aplicación actúa como un **nodo nativo de ROS 2**, permitiendo una integración fluida con brazos robóticos (MoveIt) y simuladores (Gazebo).
+
+### 🛰️ Comunicación y Suscripción Dinámica
+- **Interfaz Flexible**: El usuario puede definir el nombre del topic (ej. `/uav/camera/image_raw`) en tiempo real.
+- **Protocolo de Comunicación**: Suscripción a mensajes `sensor_msgs/Image`.
+- **Gestión de QoS (Best Effort)**: Utiliza un perfil de **Calidad de Servicio (QoS)** optimizado para telemetría robótica, priorizando los datos más recientes y garantizando la compatibilidad con sensores en redes inalámbricas.
+- **Optimización de Frecuencia**: Arquitectura adaptativa capaz de procesar flujos desde **1 Hz** hasta **30 Hz** sin pérdida de frames ni latencia acumulada.
 
 ---
 
 ## 🛠️ Lógica de Reparabilidad (Umbrales Estadísticos)
 
-El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándose en las medias y máximos de los parámetros analizados:
+El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándose en métricas dimensionales y texturales:
 
 - **Hole**: Área > 20.5 mm² o Perímetro > 18.6 mm.
 - **Crack**: Área > 6.67 mm², Perímetro > 14.13 mm, Excentricidad < 0.98 o Entropía > 9.28.
@@ -47,7 +43,7 @@ El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándo
 ## 🚀 Requisitos e Instalación
 
 1.  **Instalar ROS 2** (Humble, Foxy o compatible).
-2.  **Instalar dependencias de Python y ROS**:
+2.  **Instalar dependencias**:
     ```bash
     pip install PyQt6 opencv-python numpy torch ultralytics scikit-image tensorflow
     sudo apt install ros-${ROS_DISTRO}-cv-bridge

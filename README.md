@@ -1,4 +1,4 @@
-# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 🔍🤖
+# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 
 
 Este proyecto presenta una solución integral de **inspección visual-táctil** diseñada para la detección, segmentación y clasificación de defectos superficiales en entornos industriales. Utilizando el sensor biomimético **GelSight Mini**, la aplicación trasciende la visión convencional al capturar la topografía microscópica de las superficies, permitiendo un análisis de metrología dimensional y textural de alta precisión.
 
@@ -6,7 +6,7 @@ La herramienta integra algoritmos de **Deep Learning** de última generación (Y
 
 ---
 
-## 🏗️ Arquitectura del Sistema (File Structure)
+## Arquitectura del Sistema (File Structure)
 
 El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
@@ -19,7 +19,7 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 
 ---
 
-## 🏗️ Concurrencia y Rendimiento (Multi-threading)
+## Concurrencia y Rendimiento (Multi-threading)
 
 Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona**:
 
@@ -30,7 +30,7 @@ Para garantizar un rendimiento de grado industrial y una experiencia de usuario 
 
 ---
 
-## 🤖 Integración con ROS 2 (Robot Operating System)
+## Integración con ROS 2 (Robot Operating System)
 
 La aplicación actúa como un **nodo nativo de ROS 2**, ideal para entornos con brazos robóticos (MoveIt) y simuladores (Gazebo).
 
@@ -40,7 +40,7 @@ La aplicación actúa como un **nodo nativo de ROS 2**, ideal para entornos con 
 
 ---
 
-## 🛠️ Lógica de Reparabilidad (Umbrales Estadísticos)
+## Lógica de Reparabilidad (Umbrales Estadísticos)
 
 El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándose en métricas dimensionales y texturales:
 
@@ -51,7 +51,7 @@ El sistema evalúa automáticamente si un defecto es **NON-REPAIRABLE** basándo
 
 ---
 
-## 🚀 Requisitos e Instalación
+## Requisitos e Instalación
 
 1.  **Instalar ROS 2** (Humble, Foxy o compatible).
 2.  **Instalar dependencias**:

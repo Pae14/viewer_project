@@ -6,7 +6,7 @@ La herramienta integra algoritmos de **Deep Learning** (YOLOv12, YOLOv26, RF-DET
 
 ---
 
-## 🏗️ Arquitectura del Sistema (File Structure)
+## Arquitectura del Sistema (File Structure)
 
 El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
@@ -34,7 +34,7 @@ Para garantizar un rendimiento de grado industrial y una experiencia de usuario 
 
 ---
 
-## 📦 Modelos y Gestión de Pesos (`models/`)
+## Modelos y Gestión de Pesos (`models/`)
 
 La aplicación requiere los siguientes pesos preentrenados dentro de la carpeta `models/`:
 
@@ -68,7 +68,7 @@ grep -rn "version https://git-lfs" models/
 
 ---
 
-## 🚀 Despliegue con Docker (Recomendado)
+## Despliegue con Docker (Recomendado)
 
 El despliegue con Docker aísla todas las dependencias del sistema operativo, proveyendo **ROS 2 Humble**, compatibilidad con **GPU NVIDIA (CUDA 12.1)** y las librerías gráficas de PyQt6.
 
@@ -111,7 +111,7 @@ docker compose run --rm viewer python3 -c "import torch; print('CUDA disponible:
 
 ---
 
-## 🤖 Conexión mediante Topic de ROS 2
+## Conexión mediante Topic de ROS 2
 
 El contenedor incluye el paquete **`vb_tactile_sensors`** precompilado en `/ros2_ws` y está configurado con `network_mode: host`, lo que permite que el middleware DDS de ROS 2 comparta el mismo espacio de red que el host y otros contenedores.
 
@@ -204,7 +204,7 @@ Si dispone de un entorno Ubuntu con **ROS 2 Humble** y drivers de NVIDIA instala
 
 ---
 
-## 🛠️ Lógica de Reparabilidad (Umbrales Estadísticos)
+## Lógica de Reparabilidad (Umbrales Estadísticos)
 
 El sistema analiza en tiempo real las regiones segmentadas y evalúa de forma heurística si un defecto se clasifica como **REPAIRABLE** o **NON-REPAIRABLE**:
 

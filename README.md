@@ -1,4 +1,4 @@
-# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 
+# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 🔍🤖
 
 Este proyecto presenta una solución integral de **inspección visual-táctil** diseñada para la detección, segmentación y clasificación de defectos superficiales en entornos industriales. Utilizando el sensor biomimético **GelSight Mini**, la aplicación captura la topografía de las superficies permitiendo un análisis de metrología dimensional y textural de alta precisión.
 
@@ -6,7 +6,7 @@ La herramienta integra algoritmos de **Deep Learning** (YOLOv12, YOLOv26, RF-DET
 
 ---
 
-## Arquitectura del Sistema (File Structure)
+## 🏗️ Arquitectura del Sistema (File Structure)
 
 El software sigue un diseño modular y desacoplado para garantizar la mantenibilidad y el rendimiento en tiempo real:
 
@@ -23,7 +23,18 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 
 ---
 
-## Modelos y Gestión de Pesos (`models/`)
+## ⚡ Concurrencia y Rendimiento (Multi-threading)
+
+Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona**:
+
+- **UI Thread**: Renderizado de GUI y animaciones sin bloqueos.
+- **Acquisition Thread (`ROS2Thread`)**: Nodo de ROS 2 dedicado a la escucha y conversión de imágenes mediante `cv_bridge`.
+- **Inference Thread**: Ejecución paralela de modelos de IA, permitiendo el análisis de un frame mientras se recibe el siguiente.
+- **Async Loaders**: Carga de modelos pesados en segundo plano durante el inicio de la app.
+
+---
+
+## 📦 Modelos y Gestión de Pesos (`models/`)
 
 La aplicación requiere los siguientes pesos preentrenados dentro de la carpeta `models/`:
 
@@ -57,7 +68,7 @@ grep -rn "version https://git-lfs" models/
 
 ---
 
-## Despliegue con Docker (Recomendado)
+## 🚀 Despliegue con Docker (Recomendado)
 
 El despliegue con Docker aísla todas las dependencias del sistema operativo, proveyendo **ROS 2 Humble**, compatibilidad con **GPU NVIDIA (CUDA 12.1)** y las librerías gráficas de PyQt6.
 
@@ -153,7 +164,7 @@ docker compose run --rm viewer ros2 topic hz /gs_mini_img
 
 ---
 
-## Ejecución Nativa en el Host (sin Docker)
+## 💻 Ejecución Nativa en el Host (sin Docker)
 
 Si dispone de un entorno Ubuntu con **ROS 2 Humble** y drivers de NVIDIA instalados directamente en el sistema:
 
@@ -203,4 +214,3 @@ El sistema analiza en tiempo real las regiones segmentadas y evalúa de forma he
 - **Scratch - Friction**: `Energía GLCM < 0.06` o `Entropía GLCM > 8.75`.
 
 Las métricas dimensionales y texturales calculadas se muestran en la tarjeta lateral derecha de la interfaz y se actualizan dinámicamente con cada frame analizado.
-

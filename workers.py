@@ -5,6 +5,8 @@ import numpy as np
 import threading
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QMutexLocker
 
+import torch 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 import config
 from config import *
 from utils_vision import _draw_yolo, _draw_rfdetr
@@ -28,16 +30,38 @@ class ModelLoader(QThread):
     error    = pyqtSignal(str)
 
     def run(self):
+        y12 = y26 = rf = None
         try:
             self.progress.emit("Loading YOLO12n-seg…")
             from ultralytics import YOLO
-            y12 = YOLO(YOLO12_PATH)
+            try:
+                y12 = YOLO(YOLO12_PATH)
+                if hasattr(y12, 'to'):
+                    y12.to(DEVICE)
+            except Exception as ex:
+                self.progress.emit(f"YOLO12 error: {ex}")
+
             self.progress.emit("Loading YOLO26n-seg…")
-            y26 = YOLO(YOLO26_PATH)
+            try:
+                y26 = YOLO(YOLO26_PATH)
+                if hasattr(y26, 'to'):
+                    y26.to(DEVICE)
+            except Exception as ex:
+                self.progress.emit(f"YOLO26 error: {ex}")
+
             self.progress.emit("Loading RF-DETR…")
-            from rfdetr import RFDETRSegPreview
-            rf = RFDETRSegPreview(pretrain_weights=RFDETR_PATH)
-            rf.optimize_for_inference()
+            try:
+                from rfdetr import RFDETRSegPreview
+                try:
+                    rf = RFDETRSegPreview(pretrain_weights=RFDETR_PATH, device=DEVICE)
+                except TypeError:
+                    rf = RFDETRSegPreview(pretrain_weights=RFDETR_PATH)
+                    if hasattr(rf, 'to'):
+                        rf.to(DEVICE)
+                rf.optimize_for_inference()
+            except Exception as ex:
+                self.progress.emit(f"RF-DETR note: {ex}")
+
             self.finished.emit(y12, y26, rf)
         except Exception as ex:
             self.error.emit(str(ex))
@@ -57,14 +81,14 @@ class InferenceWorker(QThread):
             self.finished.emit([None]*4); return
         orig = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
-        r12 = y12.predict(self.ip, conf=self.conf, imgsz=640, verbose=False)[0]
-        r26 = y26.predict(self.ip, conf=self.conf, imgsz=640, verbose=False)[0]
-        rrf = rf.predict(self.ip, threshold=self.conf, resolution=672)
+        r12 = y12.predict(self.ip, conf=self.conf, imgsz=640, verbose=False, device=DEVICE)[0] if y12 else None
+        r26 = y26.predict(self.ip, conf=self.conf, imgsz=640, verbose=False, device=DEVICE)[0] if y26 else None
+        rrf = rf.predict(self.ip, threshold=self.conf, resolution=672) if rf else None
 
         orig_tup = (orig, "", (155, 160, 165), None)
-        r12_tup  = _draw_yolo(bgr, r12, list(y12.names.values()))
-        r26_tup  = _draw_yolo(bgr, r26, list(y26.names.values()))
-        rrf_tup  = _draw_rfdetr(bgr, rrf)
+        r12_tup  = _draw_yolo(bgr, r12, list(y12.names.values())) if (r12 and y12) else None
+        r26_tup  = _draw_yolo(bgr, r26, list(y26.names.values())) if (r26 and y26) else None
+        rrf_tup  = _draw_rfdetr(bgr, rrf) if rrf else None
 
         self.finished.emit([orig_tup, r12_tup, r26_tup, rrf_tup])
 
@@ -92,18 +116,20 @@ class GSThread(QThread):
         y12, y26, rf = self.models
         try:
             tmp = "/tmp/_gs.png"; cv2.imwrite(tmp, frm); det = set()
-            if midx == 0:
-                r = y12.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+            if midx == 0 and y12:
+                r = y12.predict(tmp, conf=conf, imgsz=640, verbose=False, device=DEVICE)[0]
                 if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
                 drw, txt, col, mtr = _draw_yolo(frm, r, list(y12.names.values()))
-            elif midx == 1:
-                r = y26.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+            elif midx == 1 and y26:
+                r = y26.predict(tmp, conf=conf, imgsz=640, verbose=False, device=DEVICE)[0]
                 if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
                 drw, txt, col, mtr = _draw_yolo(frm, r, list(y26.names.values()))
-            else:
+            elif rf:
                 r = rf.predict(tmp, threshold=conf, resolution=672)
                 if r is not None and len(r) > 0: det = {int(c) for c in r.class_id}
                 drw, txt, col, mtr = _draw_rfdetr(frm, r)
+            else:
+                drw = frm; txt = "NO MODEL"; col = (155, 160, 165); mtr = None
             self.result_ready.emit(drw, txt, col, mtr)
             self.det_classes.emit(det)
         except Exception as ex:
@@ -132,11 +158,11 @@ class GSThread(QThread):
             with QMutexLocker(self._mx):
                 if self._nc is not None: self.conf = self._nc; self._nc = None
                 if self._nm is not None: self.midx = self._nm; self._nm = None
-                
+                 
             if now - lft >= fi:
                 self.frame_ready.emit(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB).copy())
                 lft = now
-                
+                 
             if now - lii >= config.INFER_INTERVAL and not self._is_inferring:
                 lii = now
                 self._is_inferring = True
@@ -152,9 +178,10 @@ class ROS2Thread(QThread):
     det_classes  = pyqtSignal(set)
     status       = pyqtSignal(str)
 
-    def __init__(self, models, conf, midx=0, topic='/camera/image_raw'):
+    def __init__(self, models, conf, midx=0, topic='/gs_mini_img'):
         super().__init__()
-        self.models = models; self.conf = conf; self.midx = midx; self.topic = topic
+        self.models = models; self.conf = conf; self.midx = midx
+        self.topic = topic.strip() if topic else '/gs_mini_img'
         self._run = False; self._mx = QMutex(); self._nc = None; self._nm = None
         self._is_inferring = False
         self._bridge = None
@@ -172,18 +199,20 @@ class ROS2Thread(QThread):
         y12, y26, rf = self.models
         try:
             tmp = "/tmp/_ros2_gs.png"; cv2.imwrite(tmp, frm); det = set()
-            if midx == 0:
-                r = y12.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+            if midx == 0 and y12:
+                r = y12.predict(tmp, conf=conf, imgsz=640, verbose=False, device=DEVICE)[0]
                 if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
                 drw, txt, col, mtr = _draw_yolo(frm, r, list(y12.names.values()))
-            elif midx == 1:
-                r = y26.predict(tmp, conf=conf, imgsz=640, verbose=False)[0]
+            elif midx == 1 and y26:
+                r = y26.predict(tmp, conf=conf, imgsz=640, verbose=False, device=DEVICE)[0]
                 if r.boxes is not None: det = {int(c) for c in r.boxes.cls.cpu().numpy()}
                 drw, txt, col, mtr = _draw_yolo(frm, r, list(y26.names.values()))
-            else:
+            elif rf:
                 r = rf.predict(tmp, threshold=conf, resolution=672)
                 if r is not None and len(r) > 0: det = {int(c) for c in r.class_id}
                 drw, txt, col, mtr = _draw_rfdetr(frm, r)
+            else:
+                drw = frm; txt = "NO MODEL"; col = (155, 160, 165); mtr = None
             self.result_ready.emit(drw, txt, col, mtr)
             self.det_classes.emit(det)
         except Exception as ex:
@@ -200,15 +229,23 @@ class ROS2Thread(QThread):
             if not rclpy.ok():
                 rclpy.init()
             node = Node('defect_detector_ui')
-            self.status.emit(f"ROS 2 Node started — Subscribing to {self.topic}")
+            self.status.emit(f"ROS 2 connected — Subscribing to {self.topic}")
             
             def image_callback(msg):
                 if not self._run: return
                 
                 try:
+                    try:
+                        frm = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+                    except Exception:
+                        frm = self._bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+                        if len(frm.shape) == 2:
+                            frm = cv2.cvtColor(frm, cv2.COLOR_GRAY2BGR)
+                        elif len(frm.shape) == 3 and frm.shape[2] == 4:
+                            frm = cv2.cvtColor(frm, cv2.COLOR_BGRA2BGR)
+                        elif len(frm.shape) == 3 and frm.shape[2] == 3 and getattr(msg, 'encoding', '') == 'rgb8':
+                            frm = cv2.cvtColor(frm, cv2.COLOR_RGB2BGR)
 
-                    frm = self._bridge.imgmsg_to_cv2(msg, 'bgr8')
-                    
                     with QMutexLocker(self._mx):
                         if self._nc is not None: self.conf = self._nc; self._nc = None
                         if self._nm is not None: self.midx = self._nm; self._nm = None
@@ -224,7 +261,7 @@ class ROS2Thread(QThread):
             qos_profile = QoSProfile(
                 reliability=ReliabilityPolicy.BEST_EFFORT,
                 history=HistoryPolicy.KEEP_LAST,
-                depth=1
+                depth=10
             )
             node.create_subscription(ROSImage, self.topic, image_callback, qos_profile=qos_profile)
             self._run = True
@@ -245,11 +282,10 @@ class ClassifyWorker(QThread):
     
     def _run_resnet(self, bgr):
         try:
-            import torch
             rgb  = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype("float32") / 255.0
             img  = cv2.resize(rgb, (160, 128))
-            x    = torch.from_numpy(img).permute(2,0,1).unsqueeze(0)
-            with torch.no_grad(): probs = torch.softmax(self._rn(x)[0], 0).numpy()
+            x    = torch.from_numpy(img).permute(2,0,1).unsqueeze(0).to(DEVICE)
+            with torch.no_grad(): probs = torch.softmax(self._rn(x)[0], 0).cpu().numpy()
             idx = int(probs.argmax())
             return RESNET_CLASS_NAMES.get(idx, str(idx)), float(probs[idx])
         except Exception: return "Error", 0.0
@@ -281,14 +317,15 @@ class ClassifyLoader(QThread):
         rn = cnn = None
         
         try:
-            import torch, torchvision.models as tvm, torch.nn as nn
+            import torchvision.models as tvm, torch.nn as nn
             self.progress.emit("Loading ResNet18…")
             rn = tvm.resnet18(weights=None)
             rn.fc = nn.Linear(rn.fc.in_features, 7)
-            ck = torch.load(RESNET_PATH, map_location="cpu", weights_only=False)
+            ck = torch.load(RESNET_PATH, map_location=DEVICE, weights_only=False)
             state_dict = ck.get("state_dict", ck)
             clean_dict = {k.replace("model.", "") if k.startswith("model.") else k: v for k, v in state_dict.items()}
             rn.load_state_dict(clean_dict, strict=True)
+            rn.to(DEVICE)
             rn.eval()
         except Exception as ex: 
             self.progress.emit(f"ResNet load error: {ex}")

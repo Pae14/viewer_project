@@ -16,14 +16,33 @@ RFDETR_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_best_ema.pt')
 RESNET_PATH    = os.path.join(BASE_DIR, 'models', 'checkpoint_epoch_49.pth.tar')
 CNN_CLS_PATH   = os.path.join(BASE_DIR, 'models', 'best_model.weights.h5')
 
-IMG_DIR        = os.path.join(PARENT_DIR, 'data', 'test2', 'images')
-LBL_DIR        = os.path.join(PARENT_DIR, 'data', 'test2', 'labels')
+_candidate_img = os.path.join(PARENT_DIR, 'data', 'test2', 'images')
+_candidate_lbl = os.path.join(PARENT_DIR, 'data', 'test2', 'labels')
+if not os.path.exists(_candidate_img):
+    _alt_img = os.path.join(PARENT_DIR, 'demo_lfs', 'viewer_project', 'data', 'test2', 'images')
+    _alt_lbl = os.path.join(PARENT_DIR, 'demo_lfs', 'viewer_project', 'data', 'test2', 'labels')
+    if os.path.exists(_alt_img):
+        _candidate_img, _candidate_lbl = _alt_img, _alt_lbl
+    elif os.path.exists(os.path.join(BASE_DIR, 'data', 'test2', 'images')):
+        _candidate_img = os.path.join(BASE_DIR, 'data', 'test2', 'images')
+        _candidate_lbl = os.path.join(BASE_DIR, 'data', 'test2', 'labels')
+
+IMG_DIR        = _candidate_img
+LBL_DIR        = _candidate_lbl
 
 SAVE_DIR       = os.path.join(BASE_DIR, 'exports')
 CONF_THRESHOLD = 0.25
-GELSIGHT_CAM   = 0
+CAMERA_DEVICE  = os.environ.get('CAMERA_DEVICE', '/dev/video0')
+try:
+    GELSIGHT_CAM = (
+        int(CAMERA_DEVICE.removeprefix('/dev/video'))
+        if str(CAMERA_DEVICE).startswith('/dev/video')
+        else int(CAMERA_DEVICE)
+    )
+except (ValueError, TypeError):
+    GELSIGHT_CAM = 0
 STREAM_FPS     = 30
-INFER_INTERVAL = 1  # Será modificable dinámicamente
+INFER_INTERVAL = 0.2  # 5 Hz infer interval
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  GELSIGHT MINI SPECS (Calibration)

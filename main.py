@@ -409,7 +409,7 @@ class OnlineTab(QWidget):
         self.ros_fr = QFrame(); self.ros_fr.hide()
         rl = QVBoxLayout(self.ros_fr); rl.setContentsMargins(0,0,0,0)
         rl.addWidget(_lbl("Topic Name", 11, 400, P["text2"]))
-        self.topic_in = _input("/camera/image_raw")
+        self.topic_in = _input("/gs_mini_img")
         rl.addWidget(self.topic_in); cam.add(self.ros_fr)
 
         self.b_start = PillBtn("▶  Start", success=True); self.b_stop = PillBtn("■  Stop", danger=True)

@@ -1,4 +1,4 @@
-# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 🔍🤖
+# Tactile Defect Inspection System: Advanced Metrology & AI Analysis 
 
 Este proyecto presenta una solución integral de **inspección visual-táctil** diseñada para la detección, segmentación y clasificación de defectos superficiales en entornos industriales. Utilizando el sensor biomimético **GelSight Mini**, la aplicación captura la topografía de las superficies permitiendo un análisis de metrología dimensional y textural de alta precisión.
 

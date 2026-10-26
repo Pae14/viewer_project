@@ -27,12 +27,5 @@ services:
     device_cgroup_rules:
       - 'c 81:* rmw'   # V4L2 video devices (/dev/video*)
       - 'c 189:* rmw'  # USB devices
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     stdin_open: true
     tty: true

@@ -23,7 +23,7 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 
 ---
 
-## ⚡ Concurrencia y Rendimiento (Multi-threading)
+## Concurrencia y Rendimiento (Multi-threading)
 
 Para garantizar un rendimiento de grado industrial y una experiencia de usuario fluida, la aplicación implementa una arquitectura **multihilo asíncrona**:
 
@@ -164,7 +164,7 @@ docker compose run --rm viewer ros2 topic hz /gs_mini_img
 
 ---
 
-## 💻 Ejecución Nativa en el Host (sin Docker)
+## Ejecución Nativa en el Host (sin Docker)
 
 Si dispone de un entorno Ubuntu con **ROS 2 Humble** y drivers de NVIDIA instalados directamente en el sistema:
 

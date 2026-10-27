@@ -77,7 +77,7 @@ El despliegue con Docker aísla todas las dependencias del sistema operativo, pr
 - **Docker Engine** y **Docker Compose v2** instalados.
 - Para aceleración por hardware: **NVIDIA Driver** y **NVIDIA Container Toolkit** instalados.
 - Sesión gráfica **X11** activa para desplegar la ventana de la aplicación.
-- Concesión de permisos al servidor gráfico X11:
+- Habilitar permisos de visualización X11:
   ```bash
   xhost +si:localuser:root
   ```
@@ -90,24 +90,29 @@ Desde la raíz del proyecto (`/home/aurova/Desktop/paula/viewer_project`):
 docker compose build
 ```
 
-### 3. Arranque de la Aplicación con GPU (NVIDIA CUDA)
+### 3. Verificación de la GPU (NVIDIA CUDA)
 
-La configuración de GPU NVIDIA ya viene integrada por defecto en `docker-compose.yml`:
+Para comprobar que el contenedor detecta la tarjeta gráfica NVIDIA y la versión de PyTorch con CUDA 12.1:
 
-```bash
-docker compose up --remove-orphans
-```
-
-Para verificar que la GPU se detecta correctamente dentro del contenedor:
 ```bash
 docker compose run --rm viewer python3 -c "import torch; print('CUDA disponible:', torch.cuda.is_available(), '| Dispositivo:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
 ```
 *(Deberá mostrar `CUDA disponible: True | Dispositivo: NVIDIA GeForce RTX 3060`)*
 
-> **Nota sobre dispositivo de cámara**: Si utiliza una cámara local USB que no sea `/dev/video0`, puede especificarla antes de arrancar:
+### 4. Arranque de la Interfaz Gráfica
+
+```bash
+xhost +si:localuser:root
+docker compose up --remove-orphans
+```
+
+> **Nota sobre dispositivos de cámara**: Si utiliza una cámara local USB física que esté en un puerto diferente de `/dev/video0`, puede indicarlo al arrancar:
 > ```bash
-> CAMERA_DEVICE=/dev/video2 docker compose up
+> CAMERA_DEVICE=/dev/video2 docker compose up --remove-orphans
 > ```
+
+> **Nota para ordenadores sin tarjeta NVIDIA (Modo solo CPU)**:
+> Si se ejecuta en un equipo que no dispone de GPU NVIDIA, comenta las líneas `deploy:` en `docker-compose.yml` para que Docker no solicite el driver de NVIDIA. La aplicación e inferencia funcionarán en CPU de forma automática.
 
 ---
 

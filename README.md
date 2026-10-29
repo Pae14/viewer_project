@@ -138,7 +138,7 @@ docker compose run --rm viewer ros2 run vb_tactile_sensors gs_image_depth
 En una segunda terminal, arranca la interfaz gráfica:
 
 ```bash
-cd /home/aurova/Desktop/paula/viewer_project
+cd /.../viewer_project
 xhost +si:localuser:root
 docker compose up --remove-orphans
 ```

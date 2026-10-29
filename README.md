@@ -20,7 +20,6 @@ El software sigue un diseño modular y desacoplado para garantizar la mantenibil
 | **`export_metrics.py`** | **Herramienta de Reporting**. Script para procesamiento por lotes y generación de informes CSV estadísticos. |
 | **`models/`** | Directorio donde residen los pesos y checkpoints entrenados. |
 | **`exports/`** | Carpeta de salida para capturas de pantalla, reportes y métricas. |
-
 ---
 
 ## Concurrencia y Rendimiento (Multi-threading)
@@ -209,13 +208,76 @@ Si dispone de un entorno Ubuntu con **ROS 2 Humble** y drivers de NVIDIA instala
 
 ---
 
-## Lógica de Reparabilidad (Umbrales Estadísticos)
+## 🛠️ Métricas de Metrología 2D y Lógica de Reparabilidad
 
-El sistema analiza en tiempo real las regiones segmentadas y evalúa de forma heurística si un defecto se clasifica como **REPAIRABLE** o **NON-REPAIRABLE**:
+El sistema incorpora un motor analítico bidimensional que evalúa el defecto superficial combinando **morfometría geométrica 2D** y **análisis de textura microscópica (GLCM de Haralick)** a partir de las imágenes capturadas con el sensor táctil elastomérico GelSight Mini.
 
-- **Material loss - Holes**: `Área > 20.5 mm²` o `Perímetro > 18.6 mm`.
-- **Crack**: `Área > 6.67 mm²`, `Perímetro > 14.13 mm`, `Excentricidad < 0.98` o `Entropía > 9.28`.
-- **Scratch - Abrasion**: `Energía GLCM < 0.12` o `Entropía GLCM > 8.46`.
-- **Scratch - Friction**: `Energía GLCM < 0.06` o `Entropía GLCM > 8.75`.
+A partir de estas métricas, el sistema clasifica de forma autónoma cada defecto detectado como **REPAIRABLE** (reparable mediante rectificado, pulido o aporte) o **NON-REPAIRABLE** (daño estructural crítico o que supera las tolerancias admisibles).
 
-Las métricas dimensionales y texturales calculadas se muestran en la tarjeta lateral derecha de la interfaz y se actualizan dinámicamente con cada frame analizado.
+---
+
+### 1. Calibración del Sensor Táctil GelSight Mini
+
+La conversión entre el espacio de imagen (píxeles) y las dimensiones métricas reales ($mm$) se basa en el campo de visión calibrado (*Field of View*) de la membrana elastomérica:
+
+- **Ancho del sensor ($W_{mm}$)**: $18.6\text{ mm}$
+- **Alto del sensor ($H_{mm}$)**: $14.3\text{ mm}$
+- **Área por píxel**: $A_{px} = \frac{18.6 \times 14.3}{\text{ancho}_{px} \times \text{alto}_{px}}\text{ mm}^2/\text{px}$
+- **Resolución espacial**: $\Delta l = \sqrt{A_{px}}\text{ mm/px}$
+
+---
+
+### 2. Métricas Texturales (GLCM de Haralick)
+
+Sobre la región de interés (ROI) en escala de grises correspondiente a la máscara binaria del defecto, se calcula la **Matriz de Co-ocurrencia de Niveles de Gris (GLCM)** para una distancia inter-píxel de $d=1$ promediando en 4 orientaciones espaciales ($\theta = \{0^\circ, 45^\circ, 90^\circ, 135^\circ\}$):
+
+$$\text{GLCM}(i, j) = \sum_{x} \sum_{y} \begin{cases} 1 & \text{si } I(x, y) = i \text{ y } I(x+\Delta x, y+\Delta y) = j \\ 0 & \text{en otro caso} \end{cases}$$
+
+A partir de la matriz normalizada de probabilidades $P(i, j)$, se extraen los siguientes descriptores texturales:
+
+* **Energía GLCM (Uniformidad / Segundo Momento Angular - ASM)**:
+  $$\text{Energía} = \sum_{i} \sum_{j} P(i, j)^2$$
+  * *Interpretación física*: Mide la homogeneidad y regularidad de las micro-texturas. Superficies pulidas o no dañadas exhiben valores altos de energía. Cuando existen surcos de fricción severa o desgarros por abrasión, la dispersión de intensidades es caótica, provocando una **caída drástica** de la energía ($\le 0.06 - 0.12$).
+* **Entropía GLCM**:
+  $$\text{Entropía} = -\sum_{i} \sum_{j} P(i, j) \log_2(P(i, j) + \epsilon)$$
+  * *Interpretación física*: Mide la aleatoriedad, desorden y complejidad de la textura superficial. Un defecto con microrugosidades agudas, fracturas o desprendimiento granular produce un incremento notable de la entropía ($> 8.46 - 9.28$).
+* **Homogeneidad GLCM (Momento de Diferencia Inversa - IDM)**:
+  $$\text{Homogeneidad} = \sum_{i} \sum_{j} \frac{P(i, j)}{1 + (i - j)^2}$$
+  * *Interpretación física*: Evalúa la suavidad de las transiciones de nivel de gris locales. Disminuye significativamente en transiciones bruscas o bordes afilados dentro del defecto.
+
+---
+
+### 3. Métricas Geométricas y Dimensionales (2D)
+
+Calculadas sobre las regiones conexas de la segmentación (`skimage.measure.regionprops`):
+
+* **Área ($mm^2$)**: Superficie total proyectada de la huella del defecto:
+  $$\text{Área} = N_{\text{pixeles}} \times A_{px}$$
+* **Perímetro ($mm$)**: Longitud del contorno periférico exterior del defecto:
+  $$\text{Perímetro} = P_{\text{pixeles}} \times \Delta l$$
+* **Excentricidad ($e \in [0, 1]$)**:
+  $$e = \sqrt{1 - \left(\frac{b}{a}\right)^2}$$
+  Relación de aspecto elíptica ($a$: semieje mayor, $b$: semieje menor).
+  * $e \to 0$: Geometría circular o regular (típica de picaduras o pérdida de material puntual - *Holes*).
+  * $e \to 1$: Geometría marcadamente alargada o lineal (típica de grietas - *Cracks* con $e \ge 0.98$). Una grieta con excentricidad reducida ($e < 0.98$) indica **ramificación multidireccional crítica**.
+* **Compacidad / Circularidad**:
+  $$C = \frac{4\pi \cdot \text{Área}}{\text{Perímetro}^2} \in (0, 1]$$
+  Mide la regularidad del perímetro del defecto frente a bordes rugosos o fracturados.
+
+---
+
+### 4. Criterios y Umbrales de Reparabilidad por Defecto (2D)
+
+Un defecto se dictamina como **NON-REPAIRABLE** si se superan los límites de tolerancia dimensional o textural establecidos a partir de los estudios estadísticos:
+
+| Clase de Defecto | Familia de Métrica | Parámetros Evaluados | Condición de No Reparabilidad (**NON-REPAIRABLE**) | Justificación Técnica de Fallo |
+| :--- | :--- | :--- | :--- | :--- |
+| **Material Loss - Holes**<br>*(Pérdida de material)* | Geometría 2D | Área ($mm^2$)<br>Perímetro ($mm$) | $\text{Área} > 20.5\text{ mm}^2$ **O**<br>$\text{Perímetro} > 18.6\text{ mm}$ | Supera el límite de material mecanizable o relleno por aporte de soldadura sin comprometer la resistencia estructural. |
+| **Crack**<br>*(Grietas y Fisuras)* | Geometría 2D y Textura | Área ($mm^2$)<br>Perímetro ($mm$)<br>Excentricidad ($e$)<br>Entropía GLCM | $\text{Área} > 6.67\text{ mm}^2$ **O**<br>$\text{Perímetro} > 14.13\text{ mm}$ **O**<br>$e < 0.98$ *(ramificada)* **O**<br>$\text{Entropía} > 9.28$ | Fisuras con extensión excesiva, ramificadas (baja excentricidad) o con bordes desestructurados (alta entropía). |
+| **Scratch - Abrasion**<br>*(Desgaste por Abrasión)* | Textura 2D | Energía GLCM<br>Entropía GLCM | $\text{Energía} < 0.12$ **O**<br>$\text{Entropía} > 8.46$ | Desgaste superficial severo con pérdida total de uniformidad microscópica en el área de contacto. |
+| **Scratch - Friction**<br>*(Fricción / Arrancamiento)* | Textura 2D | Energía GLCM<br>Entropía GLCM | $\text{Energía} < 0.06$ **O**<br>$\text{Entropía} > 8.75$ | Desgarro por microsoldadura en frío o frotamiento con desorden textural irreversible. |
+
+> **Visualización en la Interfaz**:
+> Todos estos descriptores se calculan dinámicamente en tiempo real para cada defecto detectado por las redes neuronales y se muestran desglosados en el panel lateral de **Detections** y en el reporte generado mediante `export_metrics.py`. Si alguna métrica sobrepasa los umbrales de no reparabilidad, el estado visual del visor cambia automáticamente a **NON-REPAIRABLE** (rojo) junto con la notificación del parámetro infractor.
+
+

@@ -83,7 +83,7 @@ El despliegue con Docker aísla todas las dependencias del sistema operativo, pr
 
 ### 2. Compilación de la Imagen
 
-Desde la raíz del proyecto (`/home/aurova/Desktop/paula/viewer_project`):
+Desde la raíz del proyecto:
 
 ```bash
 docker compose build
@@ -121,7 +121,7 @@ El contenedor incluye el paquete **`vb_tactile_sensors`** precompilado en `/ros2
 
 ### 1. Iniciar el Publicador del Sensor (con Docker)
 
-Desde una terminal en `/home/aurova/Desktop/paula/viewer_project`:
+Desde una terminal en `/.../viewer_project`:
 
 ```bash
 docker compose run --rm viewer ros2 run vb_tactile_sensors gs_image_depth
@@ -138,7 +138,7 @@ docker compose run --rm viewer ros2 run vb_tactile_sensors gs_image_depth
 En una segunda terminal, arranca la interfaz gráfica:
 
 ```bash
-cd /home/aurova/Desktop/paula/viewer_project
+cd /.../viewer_project
 xhost +si:localuser:root
 docker compose up --remove-orphans
 ```
@@ -208,7 +208,7 @@ Si dispone de un entorno Ubuntu con **ROS 2 Humble** y drivers de NVIDIA instala
 
 ---
 
-## 🛠️ Métricas de Metrología 2D y Lógica de Reparabilidad
+## Métricas de Metrología 2D y Lógica de Reparabilidad
 
 El sistema incorpora un motor analítico bidimensional que evalúa el defecto superficial combinando **morfometría geométrica 2D** y **análisis de textura microscópica (GLCM de Haralick)** a partir de las imágenes capturadas con el sensor táctil elastomérico GelSight Mini.
 
